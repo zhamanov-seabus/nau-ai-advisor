@@ -165,7 +165,7 @@ export default function AdvisorChatPage() {
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${
+              className={`max-w-[85%] sm:max-w-[80%] rounded-lg px-4 py-2 text-sm break-words overflow-hidden ${
                 m.role === 'user'
                   ? 'bg-[#003087] text-white whitespace-pre-wrap'
                   : 'bg-gray-100 text-gray-900'

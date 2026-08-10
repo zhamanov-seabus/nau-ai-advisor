@@ -426,9 +426,9 @@ export default function AskPage() {
             )}
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div>
+                <div className="max-w-[85%] sm:max-w-[80%] min-w-0">
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${
+                    className={`rounded-lg px-4 py-2 text-sm break-words overflow-hidden ${
                       m.role === 'user'
                         ? 'bg-[#003087] text-white whitespace-pre-wrap'
                         : 'bg-white border border-gray-200 text-gray-900 shadow-sm'
