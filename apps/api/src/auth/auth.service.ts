@@ -5,14 +5,14 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
 import { User } from '../common/entities/user.entity';
 import { OtpCode } from '../common/entities/otp-code.entity';
 import { RefreshToken } from '../common/entities/refresh-token.entity';
 
 @Injectable()
 export class AuthService {
-  private resend: Resend | null = null;
+  private mailer: nodemailer.Transporter | null = null;
 
   constructor(
     @InjectRepository(User) private usersRepo: Repository<User>,
@@ -21,9 +21,15 @@ export class AuthService {
     private jwtService: JwtService,
     private config: ConfigService,
   ) {
-    const resendKey = this.config.get<string>('RESEND_API_KEY');
-    if (resendKey && !resendKey.startsWith('re_xxx')) {
-      this.resend = new Resend(resendKey);
+    const smtpUser = this.config.get<string>('SMTP_USER');
+    const smtpPass = this.config.get<string>('SMTP_PASS');
+    if (smtpUser && smtpPass) {
+      this.mailer = nodemailer.createTransport({
+        host: this.config.get<string>('SMTP_HOST', 'smtp.gmail.com'),
+        port: this.config.get<number>('SMTP_PORT', 587),
+        secure: false,
+        auth: { user: smtpUser, pass: smtpPass },
+      });
     }
   }
 
@@ -182,14 +188,14 @@ export class AuthService {
   }
 
   private async sendOtpEmail(email: string, code: string): Promise<void> {
-    if (!this.resend) {
+    if (!this.mailer) {
       console.log(`[DEV] OTP for ${email}: ${code}`);
       return;
     }
 
     try {
-      await this.resend.emails.send({
-        from: this.config.get<string>('EMAIL_FROM', 'noreply@nau.edu'),
+      await this.mailer.sendMail({
+        from: this.config.get<string>('SMTP_USER', 'redacted@na.edu'),
         to: email,
         subject: 'Your NAU AI Advisor login code',
         html: `
@@ -198,9 +204,10 @@ export class AuthService {
           <p>This code expires in 10 minutes. Do not share it with anyone.</p>
         `,
       });
+      console.log(`[Auth] OTP email sent to ${email}`);
     } catch (err) {
       console.error('[Auth] Failed to send OTP email:', err);
-      // Don't throw — log and continue so we don't leak whether email exists
+      console.log(`[DEV] OTP for ${email}: ${code}`);
     }
   }
 }

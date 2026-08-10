@@ -38,7 +38,9 @@ export class ChatController {
 
     try {
       for await (const event of this.chatService.streamMessage(req.user.id, body.message)) {
-        if (event.type === 'delta') {
+        if (event.type === 'keepalive') {
+          res.write(': keepalive\n\n');
+        } else if (event.type === 'delta') {
           res.write(`data: ${JSON.stringify({ type: 'delta', content: event.content })}\n\n`);
         } else {
           res.write(`data: ${JSON.stringify({ type: 'done', tokens_used: event.tokensUsed })}\n\n`);

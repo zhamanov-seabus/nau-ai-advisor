@@ -23,6 +23,10 @@ export class ChatSession {
   @Column({ name: 'last_message_at', nullable: true })
   lastMessageAt: Date;
 
+  // For advisor sessions: the student being discussed
+  @Column({ name: 'target_user_id', nullable: true })
+  targetUserId: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

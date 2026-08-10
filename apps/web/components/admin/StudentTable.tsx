@@ -20,7 +20,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { getStudents, createStudent, deleteStudent, type Student } from '@/lib/api';
+import { getStudents, createStudent, deleteStudent, setUserRole, type Student } from '@/lib/api';
 
 const PAGE_SIZE = 20;
 
@@ -39,6 +39,10 @@ export default function StudentTable() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [roleChangeId, setRoleChangeId] = useState<string | null>(null);
+  const [roleChangeTarget, setRoleChangeTarget] = useState<'advisor' | 'student'>('advisor');
+  const [roleLoading, setRoleLoading] = useState(false);
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
@@ -86,8 +90,21 @@ export default function StudentTable() {
     }
   }
 
+  async function handleRoleChange() {
+    if (!roleChangeId) return;
+    setRoleLoading(true);
+    try {
+      await setUserRole(roleChangeId, roleChangeTarget);
+      setRoleChangeId(null);
+      fetchStudents();
+    } catch {
+      // ignore
+    } finally {
+      setRoleLoading(false);
+    }
+  }
+
   function handleCsvImport() {
-    // Coming soon
     alert('CSV Import — Coming soon');
   }
 
@@ -125,6 +142,7 @@ export default function StudentTable() {
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Department</TableHead>
+              <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
               <TableHead></TableHead>
@@ -133,11 +151,11 @@ export default function StudentTable() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-gray-400 py-8">Loading...</TableCell>
+                <TableCell colSpan={7} className="text-center text-gray-400 py-8">Loading...</TableCell>
               </TableRow>
             ) : students.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-gray-400 py-8">No students found.</TableCell>
+                <TableCell colSpan={7} className="text-center text-gray-400 py-8">No users found.</TableCell>
               </TableRow>
             ) : (
               students.map((s) => (
@@ -145,6 +163,17 @@ export default function StudentTable() {
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell className="text-gray-500">{s.email}</TableCell>
                   <TableCell>{s.department}</TableCell>
+                  <TableCell>
+                    <Badge
+                      className={
+                        s.role === 'advisor'
+                          ? 'bg-purple-100 text-purple-700 hover:bg-purple-100'
+                          : 'bg-blue-100 text-blue-700 hover:bg-blue-100'
+                      }
+                    >
+                      {s.role ?? 'student'}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge
                       className={
@@ -160,14 +189,35 @@ export default function StudentTable() {
                     {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—'}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs h-7"
-                      onClick={() => setDeleteId(s.id)}
-                    >
-                      Delete
-                    </Button>
+                    <div className="flex gap-1">
+                      {s.role === 'advisor' ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs h-7"
+                          onClick={() => { setRoleChangeId(s.id); setRoleChangeTarget('student'); }}
+                        >
+                          Make Student
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 text-xs h-7"
+                          onClick={() => { setRoleChangeId(s.id); setRoleChangeTarget('advisor'); }}
+                        >
+                          Make Advisor
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs h-7"
+                        onClick={() => setDeleteId(s.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -176,7 +226,7 @@ export default function StudentTable() {
         </Table>
 
         <div className="p-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500">
-          <span>{total} student{total !== 1 ? 's' : ''}</span>
+          <span>{total} user{total !== 1 ? 's' : ''}</span>
           <div className="flex gap-2 items-center">
             <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Previous</Button>
             <span className="px-2">Page {page} of {totalPages}</span>
@@ -219,13 +269,37 @@ export default function StudentTable() {
       <Dialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Student</DialogTitle>
+            <DialogTitle>Delete User</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-600">Are you sure you want to delete this student? This action cannot be undone.</p>
+          <p className="text-sm text-gray-600">Are you sure you want to delete this user? This action cannot be undone.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleteLoading}>
               {deleteLoading ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Role Change Dialog */}
+      <Dialog open={!!roleChangeId} onOpenChange={(open) => { if (!open) setRoleChangeId(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Role</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            {roleChangeTarget === 'advisor'
+              ? 'Make this user an Advisor? They will get access to the advisor panel and student transcripts.'
+              : 'Make this user a Student? They will lose access to the advisor panel.'}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRoleChangeId(null)}>Cancel</Button>
+            <Button
+              className="bg-[#003087] hover:bg-[#002266] text-white"
+              onClick={handleRoleChange}
+              disabled={roleLoading}
+            >
+              {roleLoading ? 'Saving...' : 'Confirm'}
             </Button>
           </DialogFooter>
         </DialogContent>

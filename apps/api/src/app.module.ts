@@ -12,6 +12,8 @@ import { ChatModule } from './chat/chat.module';
 import { RagModule } from './rag/rag.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { AdminModule } from './admin/admin.module';
+import { AdvisorModule } from './advisor/advisor.module';
+import { PublicAdvisorModule } from './public-advisor/public-advisor.module';
 import { User } from './common/entities/user.entity';
 import { OtpCode } from './common/entities/otp-code.entity';
 import { RefreshToken } from './common/entities/refresh-token.entity';
@@ -64,6 +66,8 @@ import { KnowledgeChunk } from './common/entities/knowledge-chunk.entity';
     RagModule,
     KnowledgeModule,
     AdminModule,
+    AdvisorModule,
+    PublicAdvisorModule,
   ],
   controllers: [AppController],
   providers: [AppService],

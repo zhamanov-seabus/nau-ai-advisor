@@ -1,20 +1,34 @@
 import { Injectable } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Message } from '../common/entities/message.entity';
 import { KnowledgeChunk } from '../common/entities/knowledge-chunk.entity';
 
-export const SYSTEM_PROMPT =
-  'You are an academic advisor assistant for North American University (NAU) in Stafford, Texas.\n' +
-  'You help students with: course selection, degree requirements, academic policies, financial aid, \n' +
-  'registration deadlines, and campus resources.\n' +
-  '\n' +
-  'Rules:\n' +
-  '- Never ask for or use student names, IDs, or personal identifying information\n' +
-  '- Refer to the student as "you" only\n' +
-  '- If student shares personal info, ignore it and redirect to academic question\n' +
-  '- Always cite the specific NAU policy or catalog section when applicable\n' +
-  '- If unsure, recommend contacting the academic advising office: success@na.edu or (832) 230-5079\n' +
-  '- For urgent academic issues, escalate: "Please contact your academic advisor directly"\n' +
-  '- Disclaimer: Add at end of EVERY response: "Note: Always verify important academic decisions with your official academic advisor."';
+function loadSystemPrompt(): string {
+  // Look for system_prompt.md next to the project root (apps/api/)
+  const candidates = [
+    path.join(process.cwd(), 'system_prompt.md'),
+    path.join(__dirname, '..', '..', 'system_prompt.md'),
+    path.join(__dirname, '..', '..', '..', 'system_prompt.md'),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return fs.readFileSync(p, 'utf8').trim();
+  }
+  throw new Error('system_prompt.md not found. Checked: ' + candidates.join(', '));
+}
+
+export let SYSTEM_PROMPT = loadSystemPrompt();
+
+export interface StudentProfile {
+  major?: string;
+  concentration?: string;
+  yearLevel?: string;
+  creditHoursCompleted?: number;
+  currentGPA?: number;
+  completedCourses?: string[];
+  notes?: string;
+  updatedAt?: string;
+}
 
 export interface BuiltPrompt {
   systemPrompt: string;
@@ -22,9 +36,62 @@ export interface BuiltPrompt {
   historyMessages: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
+const SECTION_URL_MAP: Array<[RegExp, string, string]> = [
+  [/ACADEMIC CALENDAR/,                    'NAU Academic Calendar 2026-2027',  'https://na.edu/academics/academic-calendar/'],
+  [/ADMISSIONS|UNDERGRADUATE.*ADMISSION|TRANSFER.*STUDENT|INTERNATIONAL.*ADMISSION/, 'NAU Admissions', 'https://na.edu/admissions/'],
+  [/TUITION|FEE|PAYMENT|REFUND/,           'NAU Tuition & Fees',               'https://na.edu/tuition-and-fees/'],
+  [/FINANCIAL AID|SCHOLARSHIP|STALLION|STARS|TASFA|TEXAS.*GRANT/, 'NAU Financial Aid', 'https://na.edu/financial-aid/'],
+  [/COMP COURSE|CS COURSE|CS DEPARTMENT|COMPUTER SCIENCE COURSE|COMP.*DESCRIPTION/, 'CS Department', 'https://cs.na.edu/'],
+  [/BUSINESS COURSE|BUSINESS DEPARTMENT|MBA.*DESCRIPTION|ACCT|BUSI|FINA|MNGT|MRKT/, 'Business Department', 'https://business.na.edu/'],
+  [/DEGREE PLAN|DEGREE PROGRAM|BS COMPUTER|BS BUSINESS|MBA.*DEGREE|MS COMPUTER/, 'NAU Academic Catalog 2026-2027', 'https://www.na.edu/documents/academics/catalog.pdf'],
+  [/ACADEMIC POLIC|GRADING|ATTENDANCE|GPA|INCOMPLETE|REPEATED COURSE/, 'NAU Academic Policies', 'https://na.edu/academics/'],
+  [/STUDENT SERVICE|STUDENT SUCCESS|CAREER|TESTING|DISABILITY|STUDENT ORG/, 'Student Services', 'https://na.edu/student-services/'],
+  [/INTERNATIONAL|ISO|F-1|CPT|OPT|SEVIS|I-20/, 'International Student Office', 'https://na.edu/international-student-office/'],
+  [/HOUSING|RESIDENTIAL|CAMPUS LIFE/,      'Housing & Campus Life',            'https://na.edu/campus-life/'],
+  [/REGISTRATION|ENROLLMENT|REGISTRAR|TRANSCRIPT|GRADUATION.*PROCESS/, 'Registrar', 'https://na.edu/registrar/'],
+  [/LIBRARY/,                              'NAU Library',                      'https://na.edu/library/'],
+  [/STUDENT ACCOUNT|BURSAR|PAYMENT PLAN|INSTALLMENT/, 'Student Accounts',      'https://na.edu/student-accounts/'],
+  [/CANVAS|IT SERVICE|STUDENT EMAIL|TECH SUPPORT/, 'NAU IT Services',          'https://na.edu/it/'],
+  [/TEACHER CERT|CERTIFICATION PROGRAM|TEXES|TCP/, 'NAU Teacher Certification', 'https://na.edu/education/teacher-certification/'],
+  [/FACULTY DIRECTOR/,                     'NAU Faculty Directory',            'https://na.edu/academics/faculty/'],
+  [/ACADEMIC PROGRAM|PROGRAM OVERVIEW/,    'NAU Academic Programs',            'https://na.edu/academics/'],
+];
+
+function getSourceInfo(metadata: Record<string, unknown>): { title: string; url: string } | null {
+  const source = (metadata?.source as string) ?? '';
+  const section = ((metadata?.section as string) ?? '').toUpperCase();
+  const sourceUrl = metadata?.sourceUrl as string | undefined;
+
+  // 1. Dedicated academic-calendar source (added via separate seeding)
+  if (source === 'academic-calendar') {
+    return { title: 'NAU Academic Calendar 2026-2027', url: 'https://na.edu/academics/academic-calendar/' };
+  }
+
+  // 2. URL extracted from section content during seeding — most specific
+  if (sourceUrl) {
+    // Derive a human-readable title from the section name (strip leading number)
+    const rawTitle = (metadata?.section as string ?? 'NAU').replace(/^\d+\.\s*/, '').replace(/_/g, ' ');
+    // Shorten overly long titles
+    const title = rawTitle.length > 50 ? rawTitle.slice(0, 47) + '...' : rawTitle;
+    return { title, url: sourceUrl };
+  }
+
+  // 3. Pattern-based fallback
+  for (const [pattern, title, url] of SECTION_URL_MAP) {
+    if (pattern.test(section)) return { title, url };
+  }
+
+  // 4. Generic NAU fallback
+  if (source === 'NAU_KNOWLEDGE_BASE') {
+    return { title: 'NAU', url: 'https://na.edu/' };
+  }
+
+  return null;
+}
+
 @Injectable()
 export class ContextManager {
-  private readonly CONTENT_BUDGET = 7000; // 10000 - 2000 (response) - 1000 (system)
+  private readonly CONTENT_BUDGET = 5500; // increased for 12 RAG chunks // keep context small for faster responses // 10000 - 2000 (response) - 1000 (system)
   private readonly RAG_BUDGET = Math.floor(this.CONTENT_BUDGET * 0.4); // 2800
   private readonly TRANSCRIPT_BUDGET = Math.floor(this.CONTENT_BUDGET * 0.3); // 2100
   private readonly HISTORY_BUDGET = Math.floor(this.CONTENT_BUDGET * 0.3); // 2100
@@ -48,9 +115,14 @@ export class ContextManager {
       sanitizedText?: string;
     } | null,
     historyMessages: Message[],
+    studentProfile?: StudentProfile | null,
   ): BuiltPrompt {
-    // RAG context
-    const ragText = ragChunks.map((c) => c.content).join('\n\n');
+    // RAG context — include source tags so Claude can cite with hyperlinks
+    const ragText = ragChunks.map((c) => {
+      const src = getSourceInfo(c.metadata ?? {});
+      const header = src ? `[Source: ${src.title} | ${src.url}]` : '';
+      return header ? `${header}\n${c.content}` : c.content;
+    }).join('\n\n---\n\n');
     const truncatedRag = this.truncateToTokens(ragText, this.RAG_BUDGET);
 
     // Transcript context
@@ -73,8 +145,25 @@ export class ContextManager {
       trimmedHistory.unshift({ role: msg.role as 'user' | 'assistant', content: msg.content });
     }
 
-    // Compose user context block (prepended to system or user message)
+    // Student profile context
+    let profileText = '';
+    if (studentProfile && Object.keys(studentProfile).length > 0) {
+      const lines: string[] = [];
+      if (studentProfile.major) lines.push(`Major: ${studentProfile.major}`);
+      if (studentProfile.concentration) lines.push(`Concentration: ${studentProfile.concentration}`);
+      if (studentProfile.yearLevel) lines.push(`Year: ${studentProfile.yearLevel}`);
+      if (studentProfile.creditHoursCompleted != null) lines.push(`Credits completed: ${studentProfile.creditHoursCompleted}`);
+      if (studentProfile.currentGPA != null) lines.push(`Current GPA: ${studentProfile.currentGPA}`);
+      if (studentProfile.completedCourses?.length) lines.push(`Completed courses: ${studentProfile.completedCourses.join(', ')}`);
+      if (studentProfile.notes) lines.push(`Notes: ${studentProfile.notes}`);
+      if (lines.length > 0) profileText = lines.join('\n');
+    }
+
+    // Compose user context block
     const parts: string[] = [];
+    if (profileText) {
+      parts.push(`## Student Profile\n${profileText}`);
+    }
     if (truncatedRag) {
       parts.push(`## Relevant Academic Information\n${truncatedRag}`);
     }

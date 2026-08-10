@@ -129,10 +129,14 @@ export class KnowledgeService {
         lower.includes('fee');
       const chunkType: 'reference' | 'policy' = isReference ? 'reference' : 'policy';
 
+      // Extract first na.edu URL from the section as source reference
+      const urlMatch = section.match(/https?:\/\/(?:www\.)?(?:[a-z]+\.)?na\.edu[^\s)>\]"']*/i);
+      const sourceUrl = urlMatch ? urlMatch[0].replace(/[.,;:]+$/, '') : null;
+
       const chunks = this.ragService.chunkText(section, chunkType);
 
       this.logger.log(
-        `Section "${sectionTitle}" (${chunkType}): ${chunks.length} chunks`,
+        `Section "${sectionTitle}" (${chunkType}): ${chunks.length} chunks${sourceUrl ? ` | url: ${sourceUrl}` : ''}`,
       );
 
       for (const chunkContent of chunks) {
@@ -147,6 +151,7 @@ export class KnowledgeService {
               source: 'NAU_KNOWLEDGE_BASE',
               section: sectionTitle,
               chunkType,
+              ...(sourceUrl ? { sourceUrl } : {}),
             },
           }),
         );
@@ -160,5 +165,14 @@ export class KnowledgeService {
     this.logger.log(`NAU KB indexing complete: ${chunkIndex} chunks from ${sectionsProcessed} sections`);
 
     return { chunksCreated: chunkIndex, sectionsProcessed };
+  }
+
+  getNAUKBContent(): { content: string } {
+    const content = fs.readFileSync(NAU_KB_PATH, 'utf-8');
+    return { content };
+  }
+
+  updateNAUKBContent(content: string): void {
+    fs.writeFileSync(NAU_KB_PATH, content, 'utf-8');
   }
 }

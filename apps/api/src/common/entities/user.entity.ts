@@ -9,6 +9,7 @@ import {
 export enum UserRole {
   STUDENT = 'student',
   ADMIN = 'admin',
+  ADVISOR = 'advisor',
 }
 
 @Entity('users')
@@ -36,6 +37,19 @@ export class User {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @Column({ type: 'jsonb', nullable: true, default: {} })
+  profile: {
+    major?: string;
+    concentration?: string;
+    yearLevel?: string;
+    creditHoursCompleted?: number;
+    currentGPA?: number;
+    completedCourses?: string[];
+    notes?: string;
+    updatedAt?: string;
+  };
+
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;

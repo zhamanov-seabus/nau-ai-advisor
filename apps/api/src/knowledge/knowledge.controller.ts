@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Param,
   Body,
@@ -49,6 +50,17 @@ export class KnowledgeController {
 
   @Post('seed')
   seed() {
+    return this.knowledgeService.indexNAUKnowledgeBase();
+  }
+
+  @Get('nau-kb/content')
+  getNAUKBContent() {
+    return this.knowledgeService.getNAUKBContent();
+  }
+
+  @Put('nau-kb/content')
+  async updateNAUKBContent(@Body() body: { content: string }) {
+    await this.knowledgeService.updateNAUKBContent(body.content);
     return this.knowledgeService.indexNAUKnowledgeBase();
   }
 }

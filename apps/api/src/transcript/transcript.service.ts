@@ -4,13 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import {
   Transcript,
   TranscriptStatus,
 } from '../common/entities/transcript.entity';
+import { User } from '../common/entities/user.entity';
 import { EncryptionService } from '../common/encryption.service';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -20,6 +21,8 @@ export class TranscriptService {
   constructor(
     @InjectRepository(Transcript)
     private transcriptRepo: Repository<Transcript>,
+    @InjectRepository(User)
+    private usersRepo: Repository<User>,
     @InjectQueue('transcript-processing')
     private transcriptQueue: Queue,
     private encryption: EncryptionService,
@@ -109,20 +112,41 @@ export class TranscriptService {
     status?: TranscriptStatus;
     page?: number;
     limit?: number;
-  }): Promise<{ items: Transcript[]; total: number }> {
+    search?: string;
+  }): Promise<{ data: Array<{ studentId: string; studentName: string; email: string; status: TranscriptStatus | 'missing'; updatedAt?: string }>; total: number }> {
     const page = query?.page ?? 1;
     const limit = query?.limit ?? 50;
-    const where = query?.status ? { status: query.status } : {};
 
-    const [items, total] = await this.transcriptRepo.findAndCount({
-      where,
-      relations: { user: true },
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
+    const usersQb = this.usersRepo.createQueryBuilder('u');
+
+    if (query?.search) {
+      usersQb.andWhere('(u.email ILIKE :s OR u.first_name ILIKE :s OR u.last_name ILIKE :s)', { s: `%${query.search}%` });
+    }
+
+    const [users, total] = await usersQb
+      .orderBy('u.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    const userIds = users.map((u) => u.id);
+    const transcripts = userIds.length > 0
+      ? await this.transcriptRepo.find({ where: { userId: In(userIds) } })
+      : [];
+    const tMap = new Map(transcripts.map((t) => [t.userId, t]));
+
+    const data = users.map((u) => {
+      const t = tMap.get(u.id);
+      return {
+        studentId: u.id,
+        studentName: `${u.firstName} ${u.lastName}`.trim() || u.email,
+        email: u.email,
+        status: (t?.status ?? 'missing') as TranscriptStatus | 'missing',
+        updatedAt: t?.updatedAt?.toISOString(),
+      };
     });
 
-    return { items, total };
+    return { data, total };
   }
 
   async findByUser(userId: string): Promise<Transcript> {

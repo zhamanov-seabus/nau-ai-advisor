@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
+import { User } from '../common/entities/user.entity';
 import { TranscriptController, TranscriptAdminController } from './transcript.controller';
 import { TranscriptService } from './transcript.service';
 import { TranscriptProcessor } from './transcript.processor';
@@ -10,7 +11,7 @@ import { EncryptionService } from '../common/encryption.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Transcript]),
+    TypeOrmModule.forFeature([Transcript, User]),
     BullModule.registerQueue({ name: 'transcript-processing' }),
   ],
   controllers: [TranscriptController, TranscriptAdminController],

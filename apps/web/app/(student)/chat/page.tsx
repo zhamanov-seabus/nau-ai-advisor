@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { Bot } from 'lucide-react';
 import ChatWindow from '@/components/chat/ChatWindow';
 import InputBar from '@/components/chat/InputBar';
 import { getHistory, getTranscriptStatus, newSession } from '@/lib/api';
-import { getToken } from '@/lib/auth';
+import { getToken, clearToken, getRole } from '@/lib/auth';
 
 export interface Message {
   id: string;
@@ -131,6 +132,11 @@ export default function ChatPage() {
     }
   }, []);
 
+  const handleLogout = useCallback(() => {
+    clearToken();
+    window.location.href = '/login';
+  }, []);
+
   const startNewChat = useCallback(async () => {
     try {
       await newSession();
@@ -142,24 +148,36 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <header className="bg-[#003087] text-white px-4 py-3 flex items-center gap-3 shadow shrink-0">
-        <div className="h-8 w-8 rounded bg-[#FFB81C] flex items-center justify-center font-bold text-[#003087] text-sm">
-          N
+      <header className="bg-[#003087] text-white px-4 h-16 flex items-center gap-3 shadow-sm shrink-0">
+        <div className="flex items-center gap-2 flex-1">
+          <div className="h-9 w-9 rounded-[6px] bg-[#FFB81C] flex items-center justify-center flex-shrink-0">
+            <Bot className="text-[#003087]" size={20} strokeWidth={1.8} />
+          </div>
+          <div className="text-left">
+            <div className="text-[16px] font-bold text-white leading-tight">NAU</div>
+            <div className="text-[11px] font-normal text-white/70 leading-tight">AI Academic Advisor</div>
+          </div>
         </div>
-        <h1 className="font-semibold text-lg flex-1">NAU Academic Advisor</h1>
+        <button
+          onClick={handleLogout}
+          className="text-xs text-white/70 hover:text-white border border-white/30 rounded px-2 py-1 transition-colors"
+        >
+          Sign Out
+        </button>
       </header>
+      <div className="h-[2px] bg-[#FFB81C] shrink-0" />
 
       {transcriptReady !== null && (
         <div
-          className={`px-4 py-2 text-sm text-center shrink-0 ${
+          className={`px-4 py-2 text-[13px] text-center shrink-0 border-b ${
             transcriptReady
-              ? 'bg-green-50 text-green-700 border-b border-green-200'
-              : 'bg-yellow-50 text-yellow-700 border-b border-yellow-200'
+              ? 'bg-[#f0f7f0] text-[#2d6a2d] border-[#b8d9b8]'
+              : 'bg-[#fffbf0] text-[#7a5c00] border-[#e8d89a]'
           }`}
         >
           {transcriptReady
-            ? 'Transcript uploaded — personalized academic advice is enabled.'
-            : 'Transcript not uploaded. Upload your transcript for personalized advice.'}
+            ? '✓ Transcript uploaded — personalized academic advice is enabled.'
+            : 'No transcript on file. Upload your transcript in your profile for personalized advice.'}
         </div>
       )}
 

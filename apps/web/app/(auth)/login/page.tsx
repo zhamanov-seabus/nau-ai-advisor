@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requestOtp, verifyOtp } from '@/lib/api';
 import { setToken } from '@/lib/auth';
+import { Bot } from 'lucide-react';
 
 type Step = 'email' | 'otp';
 
@@ -64,14 +65,15 @@ export default function LoginPage() {
   }, [step, resendCooldown]);
 
   function validateEmail(value: string): boolean {
-    return /@(na\.edu|nau\.edu)(\.|$)/i.test(value) || value.endsWith('@na.edu') || value.endsWith('@nau.edu');
+    const allowed = ['nau.edu', 'na.edu', 'student.na.edu', 'gmail.com'];
+    return allowed.some((d) => value.toLowerCase().endsWith('@' + d));
   }
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (!validateEmail(email)) {
-      setError('Email must be a university address ending with @na.edu or @nau.edu');
+      setError('Please use your NAU email (@nau.edu or @na.edu)');
       return;
     }
     setLoading(true);
@@ -148,10 +150,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await verifyOtp(email, code);
-      setToken(data.access_token, data.role);
-      sessionStorage.setItem('role', data.role);
-      if (data.role === 'admin') {
+      setToken(data.access_token, data.user.role);
+      if (data.user.role === 'admin') {
         router.push('/dashboard');
+      } else if (data.user.role === 'advisor') {
+        router.push('/advisor/students');
       } else {
         router.push('/chat');
       }
@@ -165,49 +168,77 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-[#003087] flex items-center justify-center">
-            <span className="text-white font-bold text-lg">N</span>
+      <Card className="w-full max-w-md shadow-sm">
+        <CardHeader className="text-center pb-6">
+          {/* Combo logo: icon + text */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-[6px] bg-[#003087] flex items-center justify-center flex-shrink-0">
+              <Bot className="text-white" size={22} strokeWidth={1.8} />
+            </div>
+            <div className="text-left">
+              <div className="text-[18px] font-bold text-[#003087] leading-tight">NAU</div>
+              <div className="text-[12px] font-normal text-[#6B7280] leading-tight">AI Academic Advisor</div>
+            </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-[#003087]">NAU AI Academic Advisor</CardTitle>
-          <CardDescription>
-            {step === 'email'
-              ? 'Enter your university email to sign in'
-              : `Enter the 6-digit code sent to ${email}`}
-          </CardDescription>
+
+          {/* Title with gold accent */}
+          {step === 'email' && (
+            <>
+              <h1 className="text-[28px] font-bold text-[#003087] tracking-tight leading-tight">
+                Academic Advisor
+              </h1>
+              <div className="w-12 h-[3px] bg-[#FFB81C] mx-auto mt-2 mb-3" />
+              <p className="text-[15px] text-[#6B7280] mt-1">
+                Get instant answers about your degree requirements, course selection, and registration deadlines.
+              </p>
+            </>
+          )}
+          {step === 'otp' && (
+            <p className="text-[15px] text-[#6B7280]">
+              Enter the 6-digit code sent to {email}
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           {step === 'email' ? (
             <form onSubmit={handleEmailSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">University Email</Label>
+                <Label htmlFor="email" className="text-[14px] font-medium text-[#374151]">University Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@nau.edu"
+                  placeholder="you@na.edu"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoFocus
+                  className="h-11 text-base border-[#D1D5DB] rounded-lg focus:border-[#003087] focus:ring-2 focus:ring-[#003087]/15"
+                  style={{ fontSize: '16px' }}
                 />
-                <p className="text-xs text-gray-400">Must end with @na.edu or @nau.edu</p>
+                <p className="text-xs text-[#6B7280]">Use your NAU email (@na.edu)</p>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button
                 type="submit"
-                className="w-full bg-[#003087] hover:bg-[#002266] text-white"
+                className="w-full h-11 bg-[#003087] hover:bg-[#002470] text-white text-[15px] font-semibold tracking-wide rounded-lg"
                 disabled={loading}
               >
                 {loading ? 'Sending...' : 'Send Code'}
               </Button>
+              <p className="text-xs text-center text-[#6B7280]">We&apos;ll send a 6-digit code to your email</p>
+              <div className="mt-6 pt-4 border-t border-gray-200 text-center">
+                <p className="text-sm text-[#6B7280] mb-2">Just have a quick question?</p>
+                <a href="/ask" className="text-sm font-medium text-[#003087] hover:underline">
+                  Ask our AI Academic Advisor →
+                </a>
+              </div>
             </form>
           ) : (
             <form onSubmit={handleOtpSubmit} className="space-y-5">
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <Label>Verification Code</Label>
-                  <span className={`text-xs font-mono ${countdown < 60 ? 'text-red-500' : 'text-gray-400'}`}>
+                  <Label className="text-[14px] font-medium text-[#374151]">Verification Code</Label>
+                  <span className={`text-xs font-mono ${countdown < 60 ? 'text-red-500' : 'text-[#6B7280]'}`}>
                     {countdown > 0 ? formatTime(countdown) : 'Expired'}
                   </span>
                 </div>
@@ -223,7 +254,8 @@ export default function LoginPage() {
                       onChange={(e) => handleDigitChange(i, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(i, e)}
                       onPaste={handlePaste}
-                      className="w-11 h-12 text-center text-lg font-semibold border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003087] focus:border-transparent"
+                      className="w-11 h-12 text-center text-lg font-semibold border border-[#D1D5DB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB81C] focus:border-[#003087]"
+                      style={{ fontSize: '16px' }}
                       disabled={loading || countdown === 0}
                     />
                   ))}
@@ -234,7 +266,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-[#003087] hover:bg-[#002266] text-white"
+                className="w-full h-11 bg-[#003087] hover:bg-[#002470] text-white text-[15px] font-semibold tracking-wide rounded-lg"
                 disabled={loading || digits.join('').length < OTP_LENGTH || countdown === 0}
               >
                 {loading ? 'Verifying...' : 'Sign In'}
@@ -245,7 +277,7 @@ export default function LoginPage() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-gray-500"
+                  className="text-[#6B7280]"
                   onClick={() => { setStep('email'); setError(''); }}
                 >
                   Back
@@ -254,7 +286,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={handleResend}
                   disabled={resendCooldown > 0 || loading}
-                  className={`text-sm ${resendCooldown > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-[#003087] hover:underline cursor-pointer'}`}
+                  className={`text-sm ${resendCooldown > 0 ? 'text-[#D1D5DB] cursor-not-allowed' : 'text-[#003087] hover:underline cursor-pointer'}`}
                 >
                   {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
                 </button>

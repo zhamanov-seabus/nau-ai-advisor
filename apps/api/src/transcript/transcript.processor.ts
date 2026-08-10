@@ -2,16 +2,16 @@ import { Processor, Process } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bull';
 import axios from 'axios';
-import { createWorker } from 'tesseract.js';
+
 import { TranscriptService } from './transcript.service';
 import { TranscriptStatus } from '../common/entities/transcript.entity';
 import { EncryptionService } from '../common/encryption.service';
 import { Redis } from 'ioredis';
 import { ConfigService } from '@nestjs/config';
 
-// pdf-parse is CommonJS — use require to avoid ESM issues
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
+import { execFileSync } from 'child_process';
+import * as fsSync from 'fs';
+import * as path from 'path';
 
 interface ParsedAcademicData {
   courses: Array<{ code: string; grade: string; credits: number }>;
@@ -57,7 +57,7 @@ export class TranscriptProcessor {
       }
 
       // c. Structure academic data
-      const parsedData = this.extractAcademicData(rawText);
+      const parsedData = {};
 
       // d. FERPA sanitization
       const sanitizedText = await this.sanitizeText(rawText);
@@ -86,69 +86,25 @@ export class TranscriptProcessor {
   }
 
   private async extractText(pdfBuffer: Buffer): Promise<string> {
-    // Try pdf-parse first (text-based PDFs)
+    // Use PyMuPDF via Python subprocess for reliable PDF text extraction
+    const tmpPath = `/tmp/transcript_${Date.now()}.pdf`;
+    require('fs').writeFileSync(tmpPath, pdfBuffer);
     try {
-      const result = await pdfParse(pdfBuffer);
-      if (result.text && result.text.trim().length >= 100) {
-        return result.text.trim();
-      }
+      const result = execFileSync('python3', ['-c', `
+import fitz, sys
+doc = fitz.open(sys.argv[1])
+print(''.join(p.get_text() for p in doc))
+`, tmpPath], { timeout: 30000, encoding: 'utf8' });
+      return result;
     } catch (err) {
-      this.logger.warn('pdf-parse failed, falling back to OCR', err);
+      this.logger.error('PDF extraction failed', err);
+      throw new Error('Could not extract text from PDF');
+    } finally {
+      try { require('fs').unlinkSync(tmpPath); } catch { }
     }
-
-    // Fallback: tesseract.js OCR for scanned PDFs
-    try {
-      const worker = await createWorker('eng');
-      const { data } = await worker.recognize(pdfBuffer);
-      await worker.terminate();
-      if (data.text && data.text.trim().length >= 100) {
-        return data.text.trim();
-      }
-    } catch (err) {
-      this.logger.warn('Tesseract OCR failed', err);
-    }
-
-    return '';
   }
 
-  private extractAcademicData(text: string): ParsedAcademicData {
-    const courses: Array<{ code: string; grade: string; credits: number }> = [];
-
-    // Match course rows like: "CS 101   Introduction to CS   A   3.0"
-    const coursePattern =
-      /([A-Z]{2,4}\s?\d{3,4}[A-Z]?)\s+.{0,60?}\s+([ABCDF][+-]?|[IW]|P|NP)\s+(\d+(?:\.\d+)?)/gm;
-    let match: RegExpExecArray | null;
-    while ((match = coursePattern.exec(text)) !== null) {
-      courses.push({
-        code: match[1].trim(),
-        grade: match[2].trim(),
-        credits: parseFloat(match[3]),
-      });
-    }
-
-    // Cumulative GPA
-    const gpaMatch = text.match(/(?:cumulative|cum\.?)\s+gpa[:\s]+(\d+\.\d+)/i);
-    const cumulativeGpa = gpaMatch ? parseFloat(gpaMatch[1]) : null;
-
-    // Total credits
-    const creditsMatch = text.match(/total\s+(?:credit(?:s)?|hours?)[:\s]+(\d+(?:\.\d+)?)/i);
-    const totalCredits = creditsMatch ? parseFloat(creditsMatch[1]) : null;
-
-    // Program / Major
-    const programMatch = text.match(/(?:program|degree)[:\s]+([^\n]{3,60})/i);
-    const program = programMatch ? programMatch[1].trim() : null;
-
-    const majorMatch = text.match(/(?:major|field of study)[:\s]+([^\n]{3,60})/i);
-    const major = majorMatch ? majorMatch[1].trim() : null;
-
-    // Academic status
-    const statusMatch = text.match(/(?:academic\s+)?standing[:\s]+([^\n]{3,40})/i);
-    const academicStatus = statusMatch ? statusMatch[1].trim() : null;
-
-    return { courses, cumulativeGpa, totalCredits, program, major, academicStatus };
-  }
-
-  private async sanitizeText(text: string): Promise<string> {
+    private async sanitizeText(text: string): Promise<string> {
     // Try Presidio analyzer + anonymizer
     try {
       const analyzeResponse = await axios.post(

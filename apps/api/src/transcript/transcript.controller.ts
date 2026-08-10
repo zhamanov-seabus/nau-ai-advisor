@@ -52,8 +52,9 @@ export class TranscriptAdminController {
     @Query('status') status?: TranscriptStatus,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('search') search?: string,
   ) {
-    return this.transcriptService.getAllTranscriptStatuses({ status, page, limit });
+    return this.transcriptService.getAllTranscriptStatuses({ status, page, limit, search });
   }
 
   @Get(':studentId/status')

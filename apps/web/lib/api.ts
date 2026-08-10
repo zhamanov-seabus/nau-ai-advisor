@@ -38,7 +38,7 @@ export function requestOtp(email: string) {
 }
 
 export function verifyOtp(email: string, code: string) {
-  return api.post<{ access_token: string; role: 'student' | 'admin' }>('/auth/verify-otp', { email, code });
+  return api.post<{ access_token: string; refresh_token: string; user: { id: string; email: string; role: 'student' | 'admin' | 'advisor'; first_name: string } }>('/auth/verify-otp', { email, code });
 }
 
 export function getHistory() {
@@ -114,6 +114,17 @@ export function seedKnowledge() {
   return api.post('/admin/knowledge/seed');
 }
 
+export function getNAUKBContent() {
+  return api.get<{ content: string }>('/admin/knowledge/nau-kb/content');
+}
+
+export function updateNAUKBContent(content: string) {
+  return api.put<{ chunksCreated: number; sectionsProcessed: number }>(
+    '/admin/knowledge/nau-kb/content',
+    { content },
+  );
+}
+
 // Shared types
 export interface Student {
   id: string;
@@ -121,7 +132,12 @@ export interface Student {
   email: string;
   department: string;
   status: string;
+  role?: string;
   createdAt: string;
+}
+
+export function setUserRole(userId: string, role: string) {
+  return api.patch(`/admin/users/${userId}/role`, { role });
 }
 
 export type TranscriptStatusValue = 'ready' | 'processing' | 'missing' | 'error';
@@ -138,7 +154,48 @@ export interface KnowledgeDoc {
   id: string;
   filename: string;
   size?: number;
+  status: string;
+  chunkCount: number;
+  description?: string;
   createdAt: string;
+}
+
+// --- Advisor API ---
+
+export interface AdvisorStudent {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+  transcriptStatus: string;
+}
+
+export function getAdvisorStudents() {
+  return api.get<AdvisorStudent[]>('/advisor/students');
+}
+
+export function advisorCreateStudent(dto: { firstName: string; lastName: string; email: string; department?: string }) {
+  return api.post<{ id: string; email: string }>('/advisor/students', dto);
+}
+
+export function advisorUploadTranscript(studentId: string, file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  return api.post(`/advisor/upload/${studentId}`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
+export function advisorDeleteTranscript(studentId: string) {
+  return api.delete(`/advisor/upload/${studentId}`);
+}
+
+export function getAdvisorChatHistory(studentId: string) {
+  return api.get<Array<{ role: string; content: string; createdAt: string }>>(`/advisor/chat/history/${studentId}`);
+}
+
+export function advisorNewSession(studentId: string) {
+  return api.post(`/advisor/chat/new-session/${studentId}`);
 }
 
 export default api;

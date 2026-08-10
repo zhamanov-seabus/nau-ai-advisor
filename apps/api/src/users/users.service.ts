@@ -4,6 +4,7 @@ import { Repository, ILike } from 'typeorm';
 import { User, UserRole } from '../common/entities/user.entity';
 
 export interface CreateUserDto {
+  name?: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -73,8 +74,8 @@ export class UsersService {
   async create(dto: CreateUserDto): Promise<User> {
     const user = this.usersRepo.create({
       email: dto.email,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
+      firstName: dto.firstName ?? (dto.name ? dto.name.split(" ")[0] : ""),
+      lastName: dto.lastName ?? (dto.name ? dto.name.split(" ").slice(1).join(" ") : ""),
       department: dto.department,
       role: dto.role ?? UserRole.STUDENT,
       isActive: dto.isActive ?? true,

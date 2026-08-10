@@ -29,7 +29,7 @@ export class AuthController {
 
   @Post('request-otp')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 3, ttl: 60 * 60 * 1000 } })
+  @Throttle({ default: { limit: 20, ttl: 60 * 60 * 1000 } })
   @ApiOperation({ summary: 'Request OTP for email login' })
   requestOtp(@Body() body: { email: string }) {
     return this.authService.requestOtp(body.email);
