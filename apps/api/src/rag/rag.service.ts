@@ -66,10 +66,14 @@ export class RagService {
     let keywordResults: KnowledgeChunk[] = [];
     if (courseMatch) {
       const courseCode = `${courseMatch[1].toUpperCase()} ${courseMatch[2]}`;
+      this.logger.log(`[HYBRID] Course code detected: ${courseCode}, running keyword search`);
       keywordResults = await this.chunkRepo.query(
         `SELECT * FROM knowledge_chunks WHERE content ILIKE $1 LIMIT 3`,
         [`%${courseCode}%`],
       );
+      this.logger.log(`[HYBRID] Keyword results: ${keywordResults.length} chunks found`);
+    } else {
+      this.logger.log(`[HYBRID] No course code in query: "${query.substring(0, 80)}"`);
     }
 
     const embedding = await this.generateEmbedding(query);
