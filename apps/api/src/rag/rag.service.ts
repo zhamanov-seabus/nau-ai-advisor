@@ -60,12 +60,35 @@ export class RagService {
   }
 
   async search(query: string, limit = 8): Promise<KnowledgeChunk[]> {
+    // Hybrid search: keyword (exact match) + semantic (embedding)
+    const courseMatch = query.match(/\b(COMP|MATH|BUSI|ECON|FINA|MGMT|MKTG|ACCT|ENGL|CRJS|EDUC|PSYC|SOCI|GOVT|HIST|HUMA|FRSH)\s*(\d{4})\b/i);
+
+    let keywordResults: KnowledgeChunk[] = [];
+    if (courseMatch) {
+      const courseCode = `${courseMatch[1].toUpperCase()} ${courseMatch[2]}`;
+      keywordResults = await this.chunkRepo.query(
+        `SELECT * FROM knowledge_chunks WHERE content ILIKE $1 LIMIT 3`,
+        [`%${courseCode}%`],
+      );
+    }
+
     const embedding = await this.generateEmbedding(query);
     const embeddingStr = `[${embedding.join(',')}]`;
-    return this.chunkRepo.query(
+    const semanticResults: KnowledgeChunk[] = await this.chunkRepo.query(
       `SELECT * FROM knowledge_chunks ORDER BY embedding <=> $1::vector LIMIT $2`,
       [embeddingStr, limit],
     );
+
+    // Merge: keyword results first (deduped), then semantic
+    const seen = new Set<string>();
+    const merged: KnowledgeChunk[] = [];
+    for (const r of [...keywordResults, ...semanticResults]) {
+      if (!seen.has(r.id)) {
+        seen.add(r.id);
+        merged.push(r);
+      }
+    }
+    return merged.slice(0, limit);
   }
 
   async searchWithMetadata(query: string, options?: { department?: string; limit?: number }): Promise<KnowledgeChunk[]> {
