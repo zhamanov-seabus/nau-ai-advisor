@@ -8,7 +8,7 @@ An open-source, self-hostable AI academic advisor for universities — the first
 
 The NAU AI Academic Advisor is a retrieval-grounded conversational assistant that helps students with course selection, degree requirements, degree audits, GPA planning, academic policies, registration, and campus resources. It answers from an institution's own knowledge base (course catalogs, student handbook, official web pages) rather than from open-ended model recall, and it is built to be run and owned by the university that deploys it — each institution adapts the content, hosts the services, and keeps its own data.
 
-This advisor is the **first live module** of a planned, modular AI-agent ecosystem for universities. The advisor module is implemented and running today; the additional modules listed under [Roadmap](#roadmap) are planned.
+This advisor is the **first live module** of a planned, modular AI-agent ecosystem for universities. The advisor module is implemented and running today; the additional modules and the ecosystem layer described under [The ecosystem](#the-ecosystem) are planned.
 
 ## Key features
 
@@ -160,20 +160,50 @@ nau-ai-advisor/
 └── SECURITY.md
 ```
 
-## Roadmap
+## The ecosystem
 
-The academic advisor is the first module of a modular, open-source AI-agent ecosystem for universities. Each module is designed to be self-hostable and institution-owned.
+The academic advisor is the **first module** of a modular, open-source AI-agent ecosystem for universities. Every module is self-hostable, institution-owned, and built on the same shared foundation, and the platform is designed so that any institution can add its own modules.
+
+### Modules
+
+**Student-facing agents**
 
 | Module | Status |
 |---|---|
-| **Academic Advisor** (course selection, degree audit, GPA planning, policies) | Live / current |
-| Faculty & research support | Planned |
-| Administration & management | Planned |
-| Enrollment & admissions | Planned |
-| International department | Planned |
-| Student affairs | Planned |
+| **Student Advising** (course selection, degree audit, GPA planning, deadlines, policies) | Live / current |
+| Tutoring & Learning (subject tutoring, study help, exam prep) | Planned |
+| Financial Aid & Scholarships (aid guidance, forms, scholarship match) | Planned |
+| Career Services (internships, resumes, job search) | Planned |
+| Accessibility & Inclusion (accommodations, inclusive support) | Planned |
+| International & SEVIS (I-20, visa, multilingual onboarding) | Planned |
 
-Priorities and sequencing are governed as described in [GOVERNANCE.md](./GOVERNANCE.md).
+**Staff & institution agents**
+
+| Module | Status |
+|---|---|
+| Faculty & Research (research, grant search, teaching support) | Planned |
+| Admissions & Enrollment (inquiries, applications, credentials) | Planned |
+| Administration (operations, reporting, policy Q&A) | Planned |
+| Student Affairs (housing, events, wellbeing referrals) | Planned |
+| IT & Library Help (help desk, information literacy, citations) | Planned |
+| Retention & Early Alert (at-risk detection, success analytics) | Planned |
+
+### Shared foundation (every module)
+
+Retrieval-grounded knowledge base (RAG), FERPA/PII sanitization, role-based access control, encryption at rest, human-in-the-loop escalation, audit logging, per-task model routing (local and cloud), SIS/LMS connectors (Canvas, Banner, Workday), multilingual and voice, citation and safety guardrails, and a no-code admin console.
+
+### Ecosystem & community
+
+What makes this an ecosystem rather than a single application:
+
+- **Module SDK / plugin framework** so other universities can build their own agents
+- **Open governance** (maintainers, RFC process) — see [GOVERNANCE.md](./GOVERNANCE.md)
+- **Adopter program** with pilot universities
+- **Evaluation and evidence**: measurable impact on retention and advising load
+- **Interoperability standards** (LTI, Caliper)
+- **Documentation and contributor onboarding**
+
+The platform is general: any AI-agent project can be built and released as a module under the same open-source, self-hostable approach. Priorities and sequencing are governed as described in [GOVERNANCE.md](./GOVERNANCE.md).
 
 ## Contributing
 
