@@ -47,7 +47,7 @@ Location: `~/Projects/nau-ai-advisor/`
 - Cloudflare tunnel: manual process — needs systemd service
 
 ## Database
-- Connection: `postgresql://nau:nau_dev_password@localhost:5433/nau_advisor`
+- Connection: `postgresql://nau:<POSTGRES_PASSWORD>@localhost:5433/nau_advisor` (password from `.env` / docker-compose)
 - Docker container: `nau-ai-advisor-postgres-1`
 
 ## Build & Deploy
@@ -66,5 +66,5 @@ sudo systemctl restart nau-frontend.service
 
 ## Auth
 - Staff: OTP-based, roles ADMIN/ADVISOR/STUDENT
-- Student advisor: email OTP, @na.edu domain + whitelist (redacted@na.edu)
+- Student advisor: email OTP, @na.edu domain + optional extra allow-list via `WHITELIST_EMAILS` env var
 - Tokens in localStorage (staff) / sessionStorage (student advisor)

@@ -9,7 +9,8 @@ import { KnowledgeDocument } from '../common/entities/knowledge-document.entity'
 import { KnowledgeChunk } from '../common/entities/knowledge-chunk.entity';
 import { RagService } from '../rag/rag.service';
 
-const NAU_KB_PATH = './knowledge-base/NAU_KNOWLEDGE_BASE.md';
+const NAU_KB_PATH =
+  process.env.NAU_KB_PATH || './knowledge-base/NAU_KNOWLEDGE_BASE.md';
 
 @Injectable()
 export class KnowledgeService {

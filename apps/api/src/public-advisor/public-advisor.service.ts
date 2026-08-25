@@ -25,10 +25,15 @@ export type StreamEvent =
   | { type: 'keepalive' }
   | { type: 'error'; message: string };
 
-const CLAUDE_BIN = '/usr/local/bin/claude';
-const AGENT_CWD = './advisor-agent';
+const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
+const AGENT_CWD = process.env.AGENT_CWD || './advisor-agent';
 
-const WHITELIST_EMAILS = ['redacted@na.edu'];
+// Extra emails allowed to use the public advisor beyond the institutional
+// domain check. Comma-separated, configured via the WHITELIST_EMAILS env var.
+const WHITELIST_EMAILS = (process.env.WHITELIST_EMAILS || '')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
 
 const MAX_SESSION_MESSAGES = 30;
 const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
@@ -417,7 +422,7 @@ print(''.join(p.get_text() for p in doc))
 
     try {
       await this.mailer.sendMail({
-        from: this.config.get<string>('SMTP_USER', 'redacted@na.edu'),
+        from: this.config.get<string>('EMAIL_FROM', 'noreply@na.edu'),
         to: email,
         subject: 'Your NAU AI Advisor verification code',
         html: `

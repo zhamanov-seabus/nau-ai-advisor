@@ -17,7 +17,7 @@ export type StreamEvent =
   | { type: 'done'; tokensUsed: number }
   | { type: 'keepalive' };
 
-const CLAUDE_BIN = '/usr/local/bin/claude';
+const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
 
 @Injectable()
 export class ChatService {

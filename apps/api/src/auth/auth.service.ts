@@ -195,7 +195,7 @@ export class AuthService {
 
     try {
       await this.mailer.sendMail({
-        from: this.config.get<string>('SMTP_USER', 'redacted@na.edu'),
+        from: this.config.get<string>('EMAIL_FROM', 'noreply@na.edu'),
         to: email,
         subject: 'Your NAU AI Advisor login code',
         html: `

@@ -10,7 +10,7 @@ issue is publicly disclosed. Use one of the following channels:
 
 - GitHub's private vulnerability reporting ("Report a vulnerability" under the
   repository's **Security** tab), if enabled; or
-- email the maintainers at **security@ (set by maintainer)**.
+- email the maintainers at **azhamanov@na.edu**.
 
 > Note: the security contact address above is a placeholder. The repository
 > maintainer should replace it with a monitored address before public release.

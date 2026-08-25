@@ -10,7 +10,8 @@ import { KnowledgeDocument } from '../common/entities/knowledge-document.entity'
 import { KnowledgeChunk } from '../common/entities/knowledge-chunk.entity';
 import { User } from '../common/entities/user.entity';
 
-const NAU_KB_PATH = './knowledge-base/NAU_KNOWLEDGE_BASE.md';
+const NAU_KB_PATH =
+  process.env.NAU_KB_PATH || './knowledge-base/NAU_KNOWLEDGE_BASE.md';
 const EMBEDDING_DIM = 1536;
 
 function isApiKeyConfigured(): boolean {

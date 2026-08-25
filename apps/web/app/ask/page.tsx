@@ -106,7 +106,6 @@ export default function AskPage() {
 
   function validateEmail(value: string): boolean {
     const lower = value.toLowerCase();
-    if (lower === 'redacted@na.edu') return true;
     const domain = lower.split('@')[1];
     return domain === 'na.edu' || (domain?.endsWith('.na.edu') ?? false);
   }

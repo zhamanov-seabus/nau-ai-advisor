@@ -15,7 +15,7 @@ export type StreamEvent =
   | { type: 'done' }
   | { type: 'keepalive' };
 
-const CLAUDE_BIN = '/usr/local/bin/claude';
+const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
 
 const ADVISOR_SYSTEM_PROMPT = `You are the NAU Academic Advisor Assistant — an AI tool that helps academic advisors at North American University (NAU) review student records and plan advising sessions.
 
